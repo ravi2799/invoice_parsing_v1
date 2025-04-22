@@ -4,7 +4,7 @@ import io
 import time
 import logging
 import concurrent.futures
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union, Literal
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -43,32 +43,47 @@ app.add_middleware(
 )
 
 class General_Info(BaseModel):
-    invoice_number: str
-    invoice_date: str
+    invoiceNumber: str
+    invoiceDate: str
     importer: str
     seller: str
-    origin_country: str
-    origin_port: str
-    origin_airport: str
-    destination_country: str
-    destination_port: str
-    destination_airport: str
-    invoice_currency: str
-    invoice_incoterm: str
-    total_goods_value: str
-    total_fob_value: str
-    freight_charges: str
-    insurance_charges: str
-    total_weight: str
+    originCountry: str
+    originPort: str
+    originAirport: str
+    destinationCountry: str
+    destinationPort: str
+    destinationAirport: str
+    invoiceCurrency: str
+    invoiceIncoterm: str
+    totalGoodsValue: float
+    totalFobValue: float
+    freightCharges: float
+    insuranceCharges: float
+    totalWeight: float
 
+
+# Define models according to OpenAPI spec
+class HarmonizedCode(BaseModel):
+    suggestedCode: str
+    description: str
+    page: str
+    url: str
+    
 class Import_Export(BaseModel):
-    article_description: str
-    article_composition: str
-    hs_code: str
-    quantity: str
+    desciption: str
+    quantity: float
     unit: str
-    unit_price: str
-    total_price: str
+    unitFOBPrice: float
+    totalFOBPrice: float
+    composition: str
+    unitPrice: float
+    totalPrice: float
+    unitWeight: float
+    totalWeight: float
+    invoiceHsCode: str
+    matchingHsCodes: Optional[List[HarmonizedCode]] = None
+    matchStatus: Optional[Literal["match", "none", "multiple"]] = None
+    
 
 class First_Page(BaseModel):
     general_info: General_Info
@@ -78,71 +93,89 @@ class Second_Page(BaseModel):
     import_export: List[Import_Export]
 
 class FreightGeneralInfo(BaseModel):
-    freight_quotation_number: str
-    freight_date: str
-    freight_agent: str
+    quotationNumber: str
+    date: str
+    agent: str
     importer: str
-    shipment_country: str
-    shipment_port: Optional[str] = None
-    shipment_airport: Optional[str] = None
-    destination_country: str
-    destination_port: Optional[str] = None
-    destination_airport: Optional[str] = None
-    transport_mode: str
-    transport_incoterm: str
-    freight_quotation_currency: str
-    fob_charges: float
-    freight_charges: float
-    insurance_charges: float
-    total_freight_weight: float
+    shipmentCountry: str
+    shipmentPort: Optional[str] = None
+    shipmentAirport: Optional[str] = None
+    destinationCountry: str
+    destinationPort: Optional[str] = None
+    destinationAirport: Optional[str] = None
+    transportMode: str
+    quotationCurrency: str
+    fobCharges: float
+    freightCharges: float
+    insuranceCharges: float
+    totalWeight: float
+    container: str
+    otherCharges: float
+    totalFreightValue: float
+    totalBrutWeight: float
+    totalNetWeight: float
+    totalPackages: int
     
 class CustomsDeclaration(BaseModel):
-    article_number: str
-    hs_code: str
-    article_description: str
-    origin: str
+    
+    desciption: str
     quantity: float
     unit: str
-    unit_fob_price: float
-    total_fob_price: float    # multiply unit_fob_price by quantity
+    unitFOBPrice: float
+    totalFOBPrice: float
+    
+    number: str
+    origin: str
+    unitNetWeight: float
+    totalNetWeight: float
+    unitBrutWeight: float
+    totalBrutWeight: float
+    customHsCode: str
+    
 
 class CustomsGeneralInfo(BaseModel):
-    import_declaration_number: str
-    import_declaration_date: str
-    customs_report_number: str
-    customs_date: str
-    invoice_date: str
+    importDeclarationNumber: str
+    importDeclarationDate: str
+    customsReportNumber: str
+    customsDate: str
+    invoiceDate: str
     importer: str
     exporter: str
-    origin_country: str
-    destination_country: str
-    invoice_currency: str
-    invoice_incoterm: str
-    total_goods_value: float
-    total_fob_value: float
-    unit_net_weight:  None
-    total_net_weight: None
-    unit_brut_weight: None
-    total_brut_weight: None
+    originCountry: str
+    destinationCountry: str
+    invoiceCurrency: str
+    invoiceIncoterm: str
+    totalGoods_Value: float
+    totalFobValue: float
+    unitNetWeight:  None
+    totalNetWeight: None
+    unitBrutWeight: None
+    totalBrutWeight: None
 
 
 class CustomsFreightGeneralInfo(BaseModel):
-    transport_document_number: str
-    shipment_country: str
-    shipment_port: Optional[str] = None
-    shipment_airport: Optional[str] = None
-    destination_country: str
-    destination_port: Optional[str] = None
-    destination_airport: Optional[str] = None
-    transport_mode: str
-    containers: Optional[str] = None
-    freight_charges: float
-    insurance_charges: float
-    other_charges: float
-    total_freight_value: float
-    total_brut_weight_kg: float
-    total_net_weight_kg: float
-    total_packages: int
+    quotationNumber: str
+    date: str
+    agent: str
+    importer: str
+    shipmentCountry: str
+    shipmentPort: Optional[str] = None
+    shipmentAirport: Optional[str] = None
+    destinationCountry: str
+    destinationPort: Optional[str] = None
+    destinationAirport: Optional[str] = None
+    transportMode: str
+    quotationCurrency: str
+    fobCharges: float
+    freightCharges: float
+    insuranceCharges: float
+    totalWeight: float
+    container: str
+    otherCharges: float
+    totalFreightValue: float
+    totalBrutWeight: float
+    totalNetWeight: float
+    totalPackages: int
     
 class CustomsDeclaration_First_Page(BaseModel):
     custom_general_info: CustomsGeneralInfo
@@ -237,8 +270,8 @@ async def analyze_with_gpt(extracted_data: List[Dict]):
                 final_response  = parse_response(response.choices[0].message.content, page_number)
                 return {
                     "page": page_number,
-                    "general_info": final_response.general_info,
-                    "import_export": final_response.import_export
+                    "Invoice": final_response.general_info,
+                    "ImportExportArticle": final_response.import_export
                 }
             else:
                 response = await client.beta.chat.completions.parse(
@@ -253,7 +286,7 @@ async def analyze_with_gpt(extracted_data: List[Dict]):
                 final_response  = parse_response(response.choices[0].message.content,page_number)
                 return {
                     "page": page_number,
-                    "import_export": final_response.import_export
+                    "ImportExportArticle": final_response.import_export
                 }
         except Exception as e:
             logger.error(f"Error processing page {page_number}: {str(e)}")
@@ -288,8 +321,8 @@ async def analyze_with_gpt(extracted_data: List[Dict]):
             
             return {
                     "page": 1,
-                    "general_info": final_response.general_info,
-                    "import_export": final_response.import_export
+                    "Invoice": final_response.general_info,
+                    "ImportExportArticle": final_response.import_export
                 }
     except Exception as e:
         logger.error(f"Error in GPT analysis: {str(e)}")
@@ -331,9 +364,9 @@ async def analyze_with_gpt_custom_declaration(extracted_data: List[Dict]):
                 final_response  = parse_response(response.choices[0].message.content, page_number)
                 return {
                     "page": page_number,
-                    "custom_general_info": final_response.custom_general_info,
-                    "freight_general_info": final_response.freight_general_info,
-                    "customs_declaration": final_response.customs_declaration
+                    "CustomsDeclaration": final_response.custom_general_info,
+                    "Freight": final_response.freight_general_info,
+                    "CustomsArticle": final_response.customs_declaration
                 }
             else:
                 response = await client.beta.chat.completions.parse(
@@ -348,7 +381,7 @@ async def analyze_with_gpt_custom_declaration(extracted_data: List[Dict]):
                 final_response  = parse_response(response.choices[0].message.content,page_number)
                 return {
                     "page": page_number,
-                    "customs_declaration": final_response.customs_declaration
+                    "CustomsArticle": final_response.customs_declaration
                 }
         except Exception as e:
             logger.error(f"Error processing page {page_number}: {str(e)}")
@@ -393,9 +426,9 @@ async def analyze_with_gpt_custom_declaration(extracted_data: List[Dict]):
             final_response  = parse_response(response.choices[0].message.content, 1)
             return {
                     "page": 1,
-                    "custom_general_info": final_response.custom_general_info,
-                    "freight_general_info": final_response.freight_general_info,
-                    "customs_declaration": final_response.customs_declaration
+                    "CustomDeclaration": final_response.custom_general_info,
+                    "Freight": final_response.freight_general_info,
+                    "CustomsArticle": final_response.customs_declaration
                 }
     except Exception as e:
         logger.error(f"Error in GPT analysis: {str(e)}")
@@ -429,8 +462,7 @@ async def analyze_with_gpt_fret(extracted_data: List[Dict]):
         
         final_response  = parse_response(response.choices[0].message.content)
         return {
-                    "page": 1,
-                    "FreightGeneralInfo": final_response,
+                    "Freight": final_response,
                 }
     except Exception as e:
         logger.error(f"Error in GPT analysis: {str(e)}")
